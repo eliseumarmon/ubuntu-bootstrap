@@ -63,6 +63,56 @@ else
   ok "Clave SSH Ed25519 existente"
 fi
 
+log "SSH para GitHub"
+if ask_yes_no "¿Crear/configurar un par de claves SSH dedicado para GitHub?" y; then
+  github_key="$HOME/.ssh/id_ed25519_github"
+  github_pub="$github_key.pub"
+
+  if [[ -f "$github_key" || -f "$github_pub" ]]; then
+    warn "Ya existe una clave GitHub en $github_key; no se sobrescribirá."
+  else
+    github_comment="$(git config --global user.email 2>/dev/null || true)"
+    if [[ -z "$github_comment" ]]; then
+      read -r -p "Email/comentario para la clave de GitHub: " github_comment
+    else
+      read -r -p "Comentario para la clave de GitHub [$github_comment]: " custom_comment
+      github_comment="${custom_comment:-$github_comment}"
+    fi
+
+    printf "\nPuedes proteger la clave con passphrase cuando ssh-keygen la solicite.\n"
+    ssh-keygen -t ed25519 -f "$github_key" -C "$github_comment"
+    chmod 600 "$github_key"
+    chmod 644 "$github_pub"
+    ok "Par de claves GitHub creado"
+  fi
+
+  ssh_config="$HOME/.ssh/config"
+  touch "$ssh_config"
+  chmod 600 "$ssh_config"
+
+  if grep -Eq '^[[:space:]]*Host[[:space:]]+([^#]*[[:space:]])?github\.com([[:space:]]|$)' "$ssh_config"; then
+    warn "Ya existe una entrada Host github.com en ~/.ssh/config; no la modificaré automáticamente."
+  elif ask_yes_no "¿Configurar github.com para usar id_ed25519_github?" y; then
+    cat >>"$ssh_config" <<'EOF'
+
+# Ubuntu Developer Center - GitHub SSH
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_github
+    IdentitiesOnly yes
+EOF
+    ok "github.com configurado en ~/.ssh/config"
+  fi
+
+  if [[ -f "$github_pub" ]]; then
+    printf "\nClave pública para añadir a GitHub:\n\n"
+    cat "$github_pub"
+    printf "\n\nGitHub → Settings → SSH and GPG keys → New SSH key\n"
+    printf "Después puedes probar con: ssh -T git@github.com\n"
+  fi
+fi
+
 log "Terminal / Oh My Posh"
 if ask_yes_no "¿Instalar o actualizar Oh My Posh?" y; then
   sudo apt update
