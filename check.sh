@@ -29,6 +29,12 @@ check_cmd "Git" git 'git --version'
 check_cmd "SSH client" ssh 'ssh -V 2>&1'
 systemctl is-active --quiet ssh 2>/dev/null && ok "SSH server" "activo" || warn "SSH server" "inactivo"
 
+if [[ -f "$HOME/.ssh/id_ed25519_github" && -f "$HOME/.ssh/id_ed25519_github.pub" ]]; then
+  ok "GitHub SSH key" "$(ssh-keygen -lf "$HOME/.ssh/id_ed25519_github.pub" 2>/dev/null | awk '{print $2, $4}')"
+else
+  warn "GitHub SSH key" "no existe ~/.ssh/id_ed25519_github"
+fi
+
 check_cmd "Tailscale" tailscale 'tailscale version | head -n1'
 if command -v tailscale >/dev/null 2>&1; then
   if tailscale status >/dev/null 2>&1; then
@@ -73,6 +79,22 @@ fi
 
 check_cmd "Java" java 'java -version 2>&1'
 check_cmd "uv" uv 'uv --version'
+
+check_cmd "dig" dig 'dig -v 2>&1'
+check_cmd "netcat" nc ''
+check_cmd "traceroute" traceroute 'traceroute --version 2>&1'
+check_cmd "whois" whois 'whois --version 2>&1'
+check_cmd "iperf3" iperf3 'iperf3 --version 2>&1'
+
+check_cmd "mkcert" mkcert 'mkcert --version 2>&1'
+if command -v mkcert >/dev/null 2>&1; then
+  mkcert_caroot="$(mkcert -CAROOT 2>/dev/null || true)"
+  if [[ -n "$mkcert_caroot" && -f "$mkcert_caroot/rootCA.pem" && -f "$mkcert_caroot/rootCA-key.pem" ]]; then
+    ok "mkcert local CA" "$mkcert_caroot"
+  else
+    warn "mkcert local CA" "mkcert instalado pero la CA local no está creada"
+  fi
+fi
 
 export PATH="$HOME/.local/bin:$PATH"
 check_cmd "Oh My Posh" oh-my-posh 'oh-my-posh version'
