@@ -188,43 +188,108 @@ find_download() {
 }
 
 install_android_studio() {
-  log "Instalando dependencias de Android Studio"
+  log "Preparando Android Studio desde la página oficial"
   sudo dpkg --add-architecture i386
   sudo apt update
-  sudo apt install -y libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 curl ca-certificates
+  sudo apt install -y \
+    libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 \
+    curl ca-certificates libxml2-utils
 
   local archive=""
-  local downloaded_archive=""
-  local download_url=""
+  local page_html dialog_html accepted_html license_txt
+  local studio_url filename download_dir
 
+  # Reuse a previously downloaded archive if it exists.
   if archive="$(find_download 'android-studio-*-linux.tar.gz')"; then
     ok "Archivo local encontrado: $archive"
   else
-    warn "No encuentro android-studio-*-linux.tar.gz en ~/Downloads o ~/Descargas."
-    printf "La descarga oficial de Android Studio requiere aceptar primero la licencia en la web de Google.\n"
-    if ask_yes_no "¿Ya la has aceptado y quieres pegar ahora la URL oficial para descargarla con curl?" n; then
-      read -r -p "URL oficial de Android Studio para Linux: " download_url
-      if [[ "$download_url" =~ ^https:// ]]; then
-        downloaded_archive="$(mktemp --suffix=.tar.gz)"
-        log "Descargando Android Studio con curl"
-        curl -fL --progress-bar "$download_url" -o "$downloaded_archive"
-        archive="$downloaded_archive"
-      else
-        warn "La URL debe empezar por https://. Se cancela la descarga."
-      fi
+    page_html="$(mktemp)"
+    dialog_html="$(mktemp)"
+    accepted_html="$(mktemp)"
+    license_txt="$(mktemp)"
+
+    log "Descargando el nodo de descarga Linux desde developer.android.com"
+    curl -fsSL --compressed "https://developer.android.com/studio" -o "$page_html"
+
+    # Keep only the dialog that owns the Linux Studio licence checkbox.
+    if ! xmllint --html --recover --xpath \
+      '//input[@id="agree_studio_linux_bundle_download"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " devsite-dialog-contents ")][1]' \
+      "$page_html" 2>/dev/null >"$dialog_html" || [[ ! -s "$dialog_html" ]]; then
+      warn "No he podido localizar el diálogo Linux de Android Studio en la página oficial."
+      rm -f "$page_html" "$dialog_html" "$accepted_html" "$license_txt"
+      return 1
     fi
+
+    # Extract the licence text from that downloaded node. Nothing is copied into this repository.
+    xmllint --html --recover --xpath \
+      'string(//div[contains(concat(" ", normalize-space(@class), " "), " sdk-terms ")])' \
+      "$dialog_html" 2>/dev/null >"$license_txt" || true
+
+    printf "\n${CYAN}Términos y condiciones descargados de Android Developers${RESET}\n\n"
+    if [[ -s "$license_txt" ]]; then
+      if command -v less >/dev/null 2>&1 && [[ -t 1 ]]; then
+        less "$license_txt"
+      else
+        cat "$license_txt"
+      fi
+    else
+      warn "El nodo existe, pero no he podido extraer el texto de la licencia."
+    fi
+
+    printf "\n"
+    if ! ask_yes_no "¿Has leído y aceptas estos términos y condiciones?" n; then
+      warn "No se descargará Android Studio."
+      rm -f "$page_html" "$dialog_html" "$accepted_html" "$license_txt"
+      return 0
+    fi
+
+    # Represent the user's acceptance only in our local copy of the downloaded dialog.
+    # This does not modify or submit anything to Google's server.
+    sed -E \
+      's/(<input[^>]*id="agree_studio_linux_bundle_download"[^>]*)(>)/\1 checked="checked"\2/' \
+      "$dialog_html" >"$accepted_html"
+
+    # Extract the direct Linux tar.gz URL from the accepted dialog.
+    studio_url="$(
+      grep -oE 'https://edgedl\.me\.gvt1\.com/android/studio/ide-zips/[^"[:space:]<>]+/android-studio-[^"[:space:]<>]+-linux\.tar\.gz' \
+        "$accepted_html" | head -n1 || true
+    )"
+
+    if [[ -z "$studio_url" ]]; then
+      warn "No he encontrado el enlace Linux esperado dentro del diálogo."
+      rm -f "$page_html" "$dialog_html" "$accepted_html" "$license_txt"
+      return 1
+    fi
+
+    filename="${studio_url##*/}"
+    if [[ -d "$HOME/Descargas" ]]; then
+      download_dir="$HOME/Descargas"
+    else
+      download_dir="$HOME/Downloads"
+      mkdir -p "$download_dir"
+    fi
+    archive="$download_dir/$filename"
+
+    printf "\nEnlace detectado:\n  %s\n" "$studio_url"
+    log "Descargando $filename"
+    curl -fL --retry 3 --retry-delay 2 --progress-bar "$studio_url" -o "$archive"
+
+    rm -f "$page_html" "$dialog_html" "$accepted_html" "$license_txt"
   fi
 
   if [[ -n "$archive" && -f "$archive" ]]; then
+    log "Validando el archivo descargado"
+    if ! tar -tzf "$archive" >/dev/null; then
+      warn "El archivo no parece ser un tar.gz válido: $archive"
+      return 1
+    fi
+
     sudo rm -rf /opt/android-studio
     sudo tar -xzf "$archive" -C /opt
     ok "Android Studio instalado en /opt/android-studio"
+    printf "Archivo:  %s\n" "$archive"
     printf "Arranque: /opt/android-studio/bin/studio\n"
-  else
-    warn "Android Studio queda pendiente. Descárgalo desde la página oficial y vuelve a ejecutar esta opción."
   fi
-
-  [[ -n "$downloaded_archive" && -f "$downloaded_archive" ]] && rm -f "$downloaded_archive"
 }
 
 install_vscode_apt() {
