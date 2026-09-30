@@ -69,6 +69,18 @@ Tiene selectores interactivos por secciones.
   - extrae del mismo diálogo el enlace `edgedl.me.gvt1.com/...-linux.tar.gz`
   - descarga el archivo automáticamente con `curl -fL`
 
+**Utilidades de desarrollo**
+
+- herramientas de red:
+  - `dig` / `nslookup` mediante `dnsutils`
+  - `nc` mediante `netcat-openbsd`
+  - `traceroute`
+  - `whois`
+  - `iperf3`
+- `mkcert` + `libnss3-tools`
+  - puede ejecutar `mkcert -install` para crear e instalar una CA local
+  - la clave privada raíz `rootCA-key.pem` nunca debe compartirse
+
 **IDEs y navegador**
 
 - VS Code
@@ -101,7 +113,16 @@ Crea:
 └── projects/
 ```
 
-Configura valores Git, revisa/genera opcionalmente una clave SSH y ofrece un flujo de personalización de terminal:
+Configura valores Git y ofrece dos flujos SSH:
+
+- clave Ed25519 genérica opcional: `~/.ssh/id_ed25519`
+- clave Ed25519 dedicada a GitHub: `~/.ssh/id_ed25519_github`
+  - nunca sobrescribe una clave existente
+  - puede añadir una entrada `Host github.com` a `~/.ssh/config` si no existe una previa
+  - muestra la clave pública `.pub` para añadirla en GitHub
+  - propone verificarla con `ssh -T git@github.com`
+
+También ofrece un flujo de personalización de terminal:
 
 - instala/actualiza Oh My Posh mediante su instalador oficial
 - instala opcionalmente `0xProto Nerd Font`
@@ -142,6 +163,7 @@ La infraestructura es exclusivamente local. Producción sigue aislada por proyec
 Comprueba:
 
 - Git y SSH
+- clave SSH dedicada a GitHub
 - Tailscale y estado de conexión
 - Docker y Compose
 - VirtualBox
@@ -149,6 +171,8 @@ Comprueba:
 - NVM / Node
 - SDKMAN / Java
 - uv
+- dig / netcat / traceroute / whois / iperf3
+- mkcert y estado de su CA local
 - Oh My Posh
 - 0xProto Nerd Font
 - FVM
