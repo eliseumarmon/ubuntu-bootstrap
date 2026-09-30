@@ -71,7 +71,10 @@ if ask_yes_no "¿Crear/configurar un par de claves SSH dedicado para GitHub?" y;
   if [[ -f "$github_key" || -f "$github_pub" ]]; then
     warn "Ya existe una clave GitHub en $github_key; no se sobrescribirá."
   else
-    github_comment="$(git config --global user.email 2>/dev/null || true)"
+    github_comment=""
+    if command -v git >/dev/null 2>&1; then
+      github_comment="$(git config --global user.email 2>/dev/null || true)"
+    fi
     if [[ -z "$github_comment" ]]; then
       read -r -p "Email/comentario para la clave de GitHub: " github_comment
     else
