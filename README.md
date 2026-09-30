@@ -32,6 +32,7 @@ Instala y configura:
 - OpenSSH
 - driver NVIDIA recomendado si detecta NVIDIA
 - Docker Engine + Compose + Buildx
+- pregunta si quieres añadir tu usuario al grupo `docker` para ejecutar Docker sin `sudo`
 - VirtualBox
 - Guest Additions ISO cuando Ubuntu la ofrece
 
@@ -54,6 +55,8 @@ Tiene selectores interactivos por secciones.
 
 - Flutter + FVM
 - Android Studio
+  - si ya existe el `.tar.gz` en `~/Downloads` o `~/Descargas`, lo usa
+  - si no existe, permite pegar la URL oficial obtenida tras aceptar la licencia de Google y descargarla con `curl -fL`
 
 **IDEs y navegador**
 
@@ -87,7 +90,13 @@ Crea:
 └── projects/
 ```
 
-Configura valores Git, revisa/genera opcionalmente una clave SSH y pregunta qué infraestructura Docker quieres preparar.
+Configura valores Git, revisa/genera opcionalmente una clave SSH y ofrece un flujo de personalización de terminal:
+
+- instala/actualiza Oh My Posh mediante su instalador oficial
+- instala opcionalmente `0xProto Nerd Font`
+- puede activar Oh My Posh automáticamente en Bash mediante `~/.bashrc`
+
+Después pregunta qué infraestructura Docker quieres preparar.
 
 Valores iniciales del selector:
 
@@ -128,6 +137,8 @@ Comprueba:
 - NVM / Node
 - SDKMAN / Java
 - uv
+- Oh My Posh
+- 0xProto Nerd Font
 - FVM
 - VS Code
 - IntelliJ IDEA / Toolbox
@@ -174,3 +185,16 @@ El repositorio no debe contener:
 - contraseñas de producción
 
 `post-install.sh` genera contraseñas aleatorias únicamente para la infraestructura local y guarda `.env` con permisos `600`.
+
+
+## Android Studio y curl
+
+Android Studio puede descargarse con `curl` siempre que dispongas de la URL directa oficial. El script no intenta descubrir ni saltarse automáticamente la pantalla de licencia: primero aceptas los términos en la página oficial de Android Studio y después puedes pegar el enlace de Linux en el instalador.
+
+Ejemplo conceptual:
+
+```bash
+curl -fL "<URL_OFICIAL>" -o android-studio-linux.tar.gz
+```
+
+Google sí ofrece un endpoint `latest` automatizable para Android CLI, pero no se usa como sustituto de Android Studio.
