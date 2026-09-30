@@ -8,12 +8,14 @@ set -Eeuo pipefail
 SKIP_NVIDIA=0
 SKIP_VIRTUALBOX=0
 SKIP_DOCKER=0
+SKIP_TAILSCALE=0
 
 for arg in "$@"; do
   case "$arg" in
     --skip-nvidia) SKIP_NVIDIA=1 ;;
     --skip-virtualbox) SKIP_VIRTUALBOX=1 ;;
     --skip-docker) SKIP_DOCKER=1 ;;
+    --skip-tailscale) SKIP_TAILSCALE=1 ;;
     -h|--help)
       cat <<'EOF'
 Usage: ./bootstrap.sh [options]
@@ -22,6 +24,7 @@ Options:
   --skip-nvidia      Do not install the recommended NVIDIA driver
   --skip-virtualbox  Do not install VirtualBox
   --skip-docker      Do not install Docker Engine
+  --skip-tailscale   Do not install Tailscale
 EOF
       exit 0
       ;;
@@ -76,6 +79,35 @@ sudo DEBIAN_FRONTEND=noninteractive apt install -y \
 
 sudo systemctl enable --now ssh
 ok "Base packages and SSH installed"
+
+
+if [[ "$SKIP_TAILSCALE" -eq 0 ]]; then
+  log "Instalando Tailscale"
+
+  if ! command -v tailscale >/dev/null 2>&1; then
+    curl -fsSL https://tailscale.com/install.sh | sh
+  else
+    ok "Tailscale ya está instalado: $(tailscale version | head -n1)"
+  fi
+
+  if systemctl list-unit-files tailscaled.service >/dev/null 2>&1; then
+    sudo systemctl enable --now tailscaled
+  fi
+
+  if command -v tailscale >/dev/null 2>&1; then
+    ok "Tailscale $(tailscale version | head -n1)"
+
+    if ask_yes_no "¿Conectar y autenticar este equipo en Tailscale ahora?" y; then
+      sudo tailscale up
+    else
+      warn "Tailscale instalado pero no autenticado. Después puedes ejecutar: sudo tailscale up"
+    fi
+  else
+    warn "La instalación de Tailscale no dejó el comando disponible."
+  fi
+else
+  warn "Skipping Tailscale"
+fi
 
 if [[ "$SKIP_NVIDIA" -eq 0 ]] && lspci 2>/dev/null | grep -qi nvidia; then
   log "Installing Ubuntu's recommended NVIDIA driver"
@@ -153,9 +185,10 @@ cat <<'EOF'
 Recommended next steps:
   1. Reboot if the NVIDIA driver or kernel packages changed.
   2. Log out/in so docker and vboxusers group membership is refreshed.
-  3. Run ./dev-tools.sh
-  4. Run ./post-install.sh
-  5. Run ./check.sh
+  3. If Tailscale was installed but not authenticated, run: sudo tailscale up
+  4. Run ./dev-tools.sh
+  5. Run ./post-install.sh
+  6. Run ./check.sh
 
 For a Windows guest:
   VirtualBox -> Devices -> Insert Guest Additions CD image...
