@@ -19,7 +19,7 @@ chmod +x *.sh
 
 Menú maestro:
 
-1. `bootstrap.sh` — sistema base, NVIDIA, Docker y VirtualBox.
+1. `bootstrap.sh` — sistema base, NVIDIA, Docker, Tailscale y VirtualBox.
 2. `dev-tools.sh` — herramientas, runtimes, IDEs y navegador.
 3. `post-install.sh` — Git/SSH, estructura `~/dev` e imágenes Docker.
 4. `check.sh` — auditoría sin modificar el sistema.
@@ -33,6 +33,11 @@ Instala y configura:
 - driver NVIDIA recomendado si detecta NVIDIA
 - Docker Engine + Compose + Buildx
 - pregunta si quieres añadir tu usuario al grupo `docker` para ejecutar Docker sin `sudo`
+- Tailscale
+  - usa el instalador oficial de Tailscale
+  - habilita `tailscaled`
+  - pregunta si quieres ejecutar `sudo tailscale up` para autenticar el equipo
+  - puede omitirse con `--skip-tailscale`
 - VirtualBox
 - Guest Additions ISO cuando Ubuntu la ofrece
 
@@ -137,6 +142,7 @@ La infraestructura es exclusivamente local. Producción sigue aislada por proyec
 Comprueba:
 
 - Git y SSH
+- Tailscale y estado de conexión
 - Docker y Compose
 - VirtualBox
 - NVIDIA
