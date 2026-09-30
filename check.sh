@@ -29,6 +29,15 @@ check_cmd "Git" git 'git --version'
 check_cmd "SSH client" ssh 'ssh -V 2>&1'
 systemctl is-active --quiet ssh 2>/dev/null && ok "SSH server" "activo" || warn "SSH server" "inactivo"
 
+check_cmd "Tailscale" tailscale 'tailscale version | head -n1'
+if command -v tailscale >/dev/null 2>&1; then
+  if tailscale status >/dev/null 2>&1; then
+    ok "Tailscale status" "$(tailscale ip -4 2>/dev/null | head -n1)"
+  else
+    warn "Tailscale status" "instalado pero no conectado/autenticado"
+  fi
+fi
+
 check_cmd "Docker" docker 'docker --version'
 if command -v docker >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 && ok "Docker daemon" "accesible" || warn "Docker daemon" "sin acceso (grupo/login?)"
