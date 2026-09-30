@@ -39,7 +39,7 @@ pause() {
 while true; do
   header
   cat <<'EOF'
-  1) Sistema base, NVIDIA, Docker y VirtualBox
+  1) Sistema base, NVIDIA, Docker, Tailscale y VirtualBox
   2) Herramientas de desarrollo y aplicaciones
   3) Post-install: carpetas, Git/SSH e imágenes Docker
   4) Comprobar estado del equipo
