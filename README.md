@@ -55,8 +55,14 @@ Tiene selectores interactivos por secciones.
 
 - Flutter + FVM
 - Android Studio
-  - si ya existe el `.tar.gz` en `~/Downloads` o `~/Descargas`, lo usa
-  - si no existe, permite pegar la URL oficial obtenida tras aceptar la licencia de Google y descargarla con `curl -fL`
+  - si ya existe el `.tar.gz` en `~/Downloads` o `~/Descargas`, lo reutiliza
+  - si no existe, descarga con `curl` la página oficial de Android Studio
+  - localiza el nodo Linux mediante `agree_studio_linux_bundle_download`
+  - muestra la licencia extraída del propio HTML descargado
+  - pide aceptación explícita en terminal
+  - marca `checked="checked"` únicamente en la copia HTML temporal
+  - extrae del mismo diálogo el enlace `edgedl.me.gvt1.com/...-linux.tar.gz`
+  - descarga el archivo automáticamente con `curl -fL`
 
 **IDEs y navegador**
 
@@ -189,12 +195,36 @@ El repositorio no debe contener:
 
 ## Android Studio y curl
 
-Android Studio puede descargarse con `curl` siempre que dispongas de la URL directa oficial. El script no intenta descubrir ni saltarse automáticamente la pantalla de licencia: primero aceptas los términos en la página oficial de Android Studio y después puedes pegar el enlace de Linux en el instalador.
+La licencia **no está copiada en el repositorio**. En cada instalación se obtiene de la página oficial actual:
 
-Ejemplo conceptual:
-
-```bash
-curl -fL "<URL_OFICIAL>" -o android-studio-linux.tar.gz
+```text
+developer.android.com/studio
+        │
+        ▼
+curl descarga el HTML
+        │
+        ▼
+busca #agree_studio_linux_bundle_download
+        │
+        ├── extrae y muestra .sdk-terms
+        │
+        ▼
+usuario acepta en terminal
+        │
+        ▼
+checked="checked" en la copia temporal
+        │
+        ▼
+grep extrae el enlace Linux del mismo diálogo
+        │
+        ▼
+curl descarga android-studio-...-linux.tar.gz
 ```
 
-Google sí ofrece un endpoint `latest` automatizable para Android CLI, pero no se usa como sustituto de Android Studio.
+El patrón de descarga está limitado al CDN oficial esperado:
+
+```text
+https://edgedl.me.gvt1.com/android/studio/ide-zips/.../android-studio-...-linux.tar.gz
+```
+
+La modificación del atributo `checked` ocurre solo en un archivo temporal local y representa la aceptación hecha por el usuario en terminal; no modifica ni envía el HTML de Google.
