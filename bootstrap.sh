@@ -33,6 +33,14 @@ log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 ok()  { printf '\033[1;32m[OK]\033[0m %s\n' "$*"; }
 warn(){ printf '\033[1;33m[WARN]\033[0m %s\n' "$*"; }
 
+ask_yes_no() {
+  local prompt="$1" default="${2:-n}" answer hint="[y/N]"
+  [[ "$default" == "y" ]] && hint="[Y/n]"
+  read -r -p "$prompt $hint " answer
+  answer="${answer:-$default}"
+  [[ "$answer" =~ ^[YySs]$ ]]
+}
+
 if [[ "${EUID}" -eq 0 ]]; then
   echo "Run this script as your normal user, not as root." >&2
   exit 1
@@ -104,9 +112,18 @@ EOF
   sudo DEBIAN_FRONTEND=noninteractive apt install -y \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-  sudo usermod -aG docker "$USER"
   sudo systemctl enable --now docker
-  ok "Docker Engine installed; log out/in before using Docker without sudo"
+
+  if id -nG "$USER" | tr ' ' '\n' | grep -qx docker; then
+    ok "El usuario $USER ya pertenece al grupo docker"
+  elif ask_yes_no "¿Añadir $USER al grupo docker para usar Docker sin sudo?" y; then
+    sudo usermod -aG docker "$USER"
+    ok "Usuario añadido al grupo docker; cierra sesión y vuelve a entrar para aplicarlo"
+  else
+    warn "No se modificó el grupo docker; usarás sudo con Docker"
+  fi
+
+  ok "Docker Engine instalado"
 else
   warn "Skipping Docker"
 fi
