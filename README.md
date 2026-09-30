@@ -1,86 +1,85 @@
-# Ubuntu 26.04 developer bootstrap
+# Ubuntu Developer Center
 
-A small reinstall kit for a development laptop.
+Kit interactivo para reconstruir una estación de desarrollo Ubuntu 26.04.
 
-## Order
+## Inicio rápido
 
 ```bash
+git clone https://github.com/eliseumarmon/ubuntu-bootstrap.git
+cd ubuntu-bootstrap
 chmod +x *.sh
-
-./bootstrap.sh
-# Reboot/log out-in if requested.
-
-./dev-tools.sh
-./post-install.sh
-./check.sh
+./install.sh
 ```
 
-## 1. bootstrap.sh
+`install.sh` es el centro de inicio y permite lanzar cada fase por separado.
 
-Installs:
+## Scripts
 
-- Ubuntu updates and base CLI packages
+### `install.sh`
+
+Menú maestro:
+
+1. `bootstrap.sh` — sistema base, NVIDIA, Docker y VirtualBox.
+2. `dev-tools.sh` — herramientas, runtimes, IDEs y navegador.
+3. `post-install.sh` — Git/SSH, estructura `~/dev` e imágenes Docker.
+4. `check.sh` — auditoría sin modificar el sistema.
+
+### `bootstrap.sh`
+
+Instala y configura:
+
+- actualizaciones de Ubuntu
 - OpenSSH
-- recommended NVIDIA driver when an NVIDIA GPU is detected
-- Docker Engine + Compose + Buildx from Docker's official repository
+- driver NVIDIA recomendado si detecta NVIDIA
+- Docker Engine + Compose + Buildx
 - VirtualBox
-- Guest Additions ISO package when Ubuntu provides it
-- required user groups (`docker`, `vboxusers`)
+- Guest Additions ISO cuando Ubuntu la ofrece
 
-Options:
+Guest Additions se instala dentro de la VM Windows desde:
 
-```bash
-./bootstrap.sh --skip-nvidia
-./bootstrap.sh --skip-docker
-./bootstrap.sh --skip-virtualbox
-```
+`VirtualBox → Devices → Insert Guest Additions CD image…`
 
-### Windows Guest Additions
+### `dev-tools.sh`
 
-Guest Additions are installed **inside Windows**, not on the Ubuntu host:
+Tiene selectores interactivos por secciones.
 
-1. Start the Windows VM.
-2. VirtualBox → **Devices → Insert Guest Additions CD image…**
-3. In Windows, open the virtual CD.
-4. Run `VBoxWindowsAdditions.exe`.
-5. Reboot Windows.
+**Herramientas base**
 
-## 2. dev-tools.sh
-
-Installs/configures:
-
-- NVM + current Node LTS
+- Git
+- NVM + Node LTS
 - SDKMAN! + Java 21 Temurin
 - uv
-- VS Code from Microsoft's repository
-- Brave from Brave's repository
-- Flutter bootstrap SDK + FVM + stable Flutter
-- Android Studio system dependencies
-- Android Studio if its official `android-studio-*-linux.tar.gz` is in `~/Downloads` or `~/Descargas`
-- JetBrains Toolbox if its official `jetbrains-toolbox-*.tar.gz` is in the same folder
 
-Options:
+**Móvil**
+
+- Flutter + FVM
+- Android Studio
+
+**IDEs y navegador**
+
+- VS Code
+- IntelliJ IDEA
+- Brave
+
+Para estas tres aplicaciones se puede elegir el método:
+
+| Aplicación | Método 1 | Método 2 |
+|---|---|---|
+| VS Code | repositorio APT oficial de Microsoft | Snap |
+| IntelliJ IDEA | JetBrains Toolbox | Snap |
+| Brave | repositorio APT oficial de Brave | Snap |
+
+Los nombres de los snaps son:
 
 ```bash
-./dev-tools.sh --no-brave
-./dev-tools.sh --no-flutter
-./dev-tools.sh --no-android-studio
-./dev-tools.sh --no-jetbrains-toolbox
+sudo snap install code --classic
+sudo snap install intellij-idea --classic
+sudo snap install brave
 ```
 
-### Why there is a Flutter bootstrap SDK
+### `post-install.sh`
 
-FVM itself is a Dart application. The bootstrap Flutter SDK supplies Dart so FVM can run. Actual projects should select their Flutter version with:
-
-```bash
-cd project
-fvm use <version>
-fvm flutter doctor
-```
-
-## 3. post-install.sh
-
-Creates:
+Crea:
 
 ```text
 ~/dev/
@@ -88,82 +87,90 @@ Creates:
 └── projects/
 ```
 
-The shared **local-only** infrastructure contains:
+Configura valores Git, revisa/genera opcionalmente una clave SSH y pregunta qué infraestructura Docker quieres preparar.
 
-- MySQL 8.4
-- PostgreSQL 17
-- Redis 7
-- Mailpit
-
-It creates the external Docker network `dev-network`.
-
-Start it with:
-
-```bash
-cd ~/dev/infrastructure
-docker compose up -d
-```
-
-Projects running in Docker should join `dev-network` and connect to:
+Valores iniciales del selector:
 
 ```text
-mysql-dev:3306
-postgres-dev:5432
-redis-dev:6379
-mailpit-dev:1025
+[x] MySQL
+[ ] PostgreSQL
+[ ] Redis
+[ ] Mailpit
 ```
 
-Production infrastructure is intentionally separate.
+Cada imagen pregunta por el tag y usa `latest` si pulsas Enter.
 
-## 4. check.sh
+Ejemplo:
 
-Read-only audit of the workstation:
+```text
+¿Preparar MySQL? [Y/n]
+Tag para mysql [latest]:
+```
+
+Entonces se hace:
 
 ```bash
-./check.sh
+docker pull mysql:latest
 ```
 
-It reports the state of Docker, VirtualBox, NVIDIA, NVM/Node, SDKMAN/Java, uv, FVM/Flutter, VS Code, Brave, Android Studio, ADB and the local development infrastructure.
+y `compose.yaml` contiene únicamente los servicios elegidos. También se pueden añadir imágenes personalizadas solo para hacer `docker pull`.
 
-## Secrets
+La infraestructura es exclusivamente local. Producción sigue aislada por proyecto.
 
-This repository intentionally does **not** contain:
+### `check.sh`
 
-- SSH private keys
-- GitHub tokens
-- production `.env` files
-- certificates
-- database production passwords
+Comprueba:
 
-`post-install.sh` generates random **local-development-only** database passwords in `~/dev/infrastructure/.env` and creates a `.gitignore` for it.
+- Git y SSH
+- Docker y Compose
+- VirtualBox
+- NVIDIA
+- NVM / Node
+- SDKMAN / Java
+- uv
+- FVM
+- VS Code
+- IntelliJ IDEA / Toolbox
+- Brave
+- Android Studio / ADB
+- infraestructura e imágenes Docker locales
 
-## PHP
+## Arquitectura de runtimes
 
-PHP is intentionally not installed globally. Each PHP project should select its runtime in Docker, for example:
+```text
+Host
+├── Node → NVM
+├── Java → SDKMAN!
+├── Python → uv
+├── Flutter → FVM
+└── Docker
+    ├── PHP por proyecto
+    ├── Node por proyecto cuando esté dockerizado
+    └── infraestructura local seleccionada
+```
+
+PHP no se instala globalmente. Cada proyecto fija su runtime:
 
 ```dockerfile
 FROM php:8.2-fpm
 ```
 
-or:
+o:
 
 ```dockerfile
 FROM php:8.5-fpm
 ```
 
-Composer can likewise run in the application's PHP container or through the official Composer image.
+Los proyectos Node dockerizados también fijan su propia versión, por ejemplo `node:20`.
 
-## Node
+## Secretos
 
-Node is installed locally through NVM for CLIs, scripts and non-Docker projects. Dockerized applications keep their own Node version, e.g. Game Shelf can continue using `node:20`.
+El repositorio no debe contener:
 
-## Android Studio
+- claves SSH privadas
+- tokens
+- certificados
+- `.env` de producción
+- contraseñas de producción
 
-After the tarball is installed, Android Studio's first-run wizard should install the Android SDK, Platform Tools, Command-line Tools and Emulator. Then run:
-
-```bash
-fvm flutter doctor
-fvm flutter doctor --android-licenses
-```
-
-VirtualBox and Android Emulator should not run hardware-virtualized workloads at the same time if the host becomes resource constrained.
+`post-install.sh` genera contraseñas aleatorias únicamente para la infraestructura local y guarda `.env` con permisos `600`.
