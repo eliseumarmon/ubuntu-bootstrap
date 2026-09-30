@@ -357,6 +357,37 @@ install_brave_snap() {
   sudo snap install brave
 }
 
+install_bruno_apt() {
+  log "Instalando Bruno desde su repositorio APT oficial"
+
+  if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
+    warn "El repositorio APT oficial de Bruno documenta actualmente arch=amd64."
+    warn "Usa el método Snap en esta arquitectura."
+    return 1
+  fi
+
+  sudo mkdir -p /etc/apt/keyrings
+  sudo apt update
+  sudo apt install -y gpg curl
+
+  curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9FA6017ECABE0266" \
+    | gpg --dearmor \
+    | sudo tee /etc/apt/keyrings/bruno.gpg >/dev/null
+
+  sudo chmod 644 /etc/apt/keyrings/bruno.gpg
+
+  echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/bruno.gpg] http://debian.usebruno.com/ bruno stable" \
+    | sudo tee /etc/apt/sources.list.d/bruno.list >/dev/null
+
+  sudo apt update
+  sudo apt install -y bruno
+}
+
+install_bruno_snap() {
+  ensure_snap
+  sudo snap install bruno
+}
+
 install_intellij_toolbox() {
   log "Instalando JetBrains Toolbox"
   sudo apt update
@@ -392,8 +423,8 @@ core_names=("Git" "NVM + Node LTS" "SDKMAN! + Java 21" "uv")
 core_selected=(1 1 1 1)
 mobile_names=("Flutter + FVM" "Android Studio")
 mobile_selected=(1 1)
-apps_names=("VS Code" "IntelliJ IDEA" "Brave")
-apps_selected=(1 1 1)
+apps_names=("VS Code" "IntelliJ IDEA" "Brave" "Bruno")
+apps_selected=(1 1 1 1)
 utility_names=("Herramientas de red (dig, nc, traceroute, whois, iperf3)" "mkcert + CA local")
 utility_selected=(1 1)
 
@@ -446,6 +477,14 @@ if [[ "${apps_selected[2]}" -eq 1 ]]; then
   case "$method" in
     1) install_brave_apt ;;
     2) install_brave_snap ;;
+  esac
+fi
+
+if [[ "${apps_selected[3]}" -eq 1 ]]; then
+  method="$(choose_method "Bruno" "Repositorio APT oficial de Bruno")"
+  case "$method" in
+    1) install_bruno_apt ;;
+    2) install_bruno_snap ;;
   esac
 fi
 
