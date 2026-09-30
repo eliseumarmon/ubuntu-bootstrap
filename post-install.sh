@@ -63,6 +63,41 @@ else
   ok "Clave SSH Ed25519 existente"
 fi
 
+log "Terminal / Oh My Posh"
+if ask_yes_no "¿Instalar o actualizar Oh My Posh?" y; then
+  sudo apt update
+  sudo apt install -y curl unzip fontconfig
+  mkdir -p "$HOME/.local/bin"
+
+  curl -s https://ohmyposh.dev/install.sh | bash -s -- -d "$HOME/.local/bin"
+  export PATH="$HOME/.local/bin:$PATH"
+
+  if command -v oh-my-posh >/dev/null 2>&1; then
+    ok "Oh My Posh $(oh-my-posh version)"
+
+    if ask_yes_no "¿Instalar 0xProto Nerd Font?" y; then
+      oh-my-posh font install 0xProto
+      command -v fc-cache >/dev/null 2>&1 && fc-cache -f
+      ok "0xProto Nerd Font instalada para el usuario"
+      printf "Selecciona '0xProto Nerd Font' en el perfil de tu terminal y, si quieres, en la terminal integrada de VS Code.\n"
+    fi
+
+    if ask_yes_no "¿Activar Oh My Posh automáticamente en Bash?" y; then
+      if ! grep -Fq '# Ubuntu Developer Center - Oh My Posh' "$HOME/.bashrc"; then
+        cat >>"$HOME/.bashrc" <<'EOF'
+
+# Ubuntu Developer Center - Oh My Posh
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(oh-my-posh init bash)"
+EOF
+      fi
+      ok "Oh My Posh activado en ~/.bashrc; abre una terminal nueva para verlo"
+    fi
+  else
+    warn "La instalación de Oh My Posh no dejó el binario disponible."
+  fi
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   warn "Docker no está instalado. Se crean las carpetas, pero se omite la sección Docker."
   exit 0
