@@ -81,19 +81,23 @@ Tiene selectores interactivos por secciones.
   - puede ejecutar `mkcert -install` para crear e instalar una CA local
   - la clave privada raíz `rootCA-key.pem` nunca debe compartirse
 
-**IDEs y navegador**
+**IDEs y aplicaciones**
 
 - VS Code
 - IntelliJ IDEA
 - Brave
+- Bruno
 
-Para estas tres aplicaciones se puede elegir el método:
+Bruno se instala como aplicación de escritorio para probar APIs y trabajar con colecciones locales versionables con Git.
+
+Para estas cuatro aplicaciones se puede elegir el método:
 
 | Aplicación | Método 1 | Método 2 |
 |---|---|---|
 | VS Code | repositorio APT oficial de Microsoft | Snap |
 | IntelliJ IDEA | JetBrains Toolbox | Snap |
 | Brave | repositorio APT oficial de Brave | Snap |
+| Bruno | repositorio APT oficial de Bruno | Snap |
 
 Los nombres de los snaps son:
 
@@ -101,6 +105,7 @@ Los nombres de los snaps son:
 sudo snap install code --classic
 sudo snap install intellij-idea --classic
 sudo snap install brave
+sudo snap install bruno
 ```
 
 ### `post-install.sh`
@@ -179,6 +184,7 @@ Comprueba:
 - VS Code
 - IntelliJ IDEA / Toolbox
 - Brave
+- Bruno
 - Android Studio / ADB
 - infraestructura e imágenes Docker locales
 
