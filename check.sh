@@ -65,6 +65,14 @@ fi
 check_cmd "Java" java 'java -version 2>&1'
 check_cmd "uv" uv 'uv --version'
 
+export PATH="$HOME/.local/bin:$PATH"
+check_cmd "Oh My Posh" oh-my-posh 'oh-my-posh version'
+if command -v fc-list >/dev/null 2>&1 && fc-list | grep -qi '0xProto.*Nerd'; then
+  ok "0xProto Nerd Font" "instalada"
+else
+  warn "0xProto Nerd Font" "no encontrada"
+fi
+
 export PATH="$HOME/.pub-cache/bin:$HOME/.local/share/flutter-bootstrap/bin:$PATH"
 check_cmd "FVM" fvm 'fvm --version'
 
