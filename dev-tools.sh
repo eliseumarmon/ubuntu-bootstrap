@@ -191,18 +191,40 @@ install_android_studio() {
   log "Instalando dependencias de Android Studio"
   sudo dpkg --add-architecture i386
   sudo apt update
-  sudo apt install -y libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
+  sudo apt install -y libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 curl ca-certificates
 
-  local archive
+  local archive=""
+  local downloaded_archive=""
+  local download_url=""
+
   if archive="$(find_download 'android-studio-*-linux.tar.gz')"; then
+    ok "Archivo local encontrado: $archive"
+  else
+    warn "No encuentro android-studio-*-linux.tar.gz en ~/Downloads o ~/Descargas."
+    printf "La descarga oficial de Android Studio requiere aceptar primero la licencia en la web de Google.\n"
+    if ask_yes_no "¿Ya la has aceptado y quieres pegar ahora la URL oficial para descargarla con curl?" n; then
+      read -r -p "URL oficial de Android Studio para Linux: " download_url
+      if [[ "$download_url" =~ ^https:// ]]; then
+        downloaded_archive="$(mktemp --suffix=.tar.gz)"
+        log "Descargando Android Studio con curl"
+        curl -fL --progress-bar "$download_url" -o "$downloaded_archive"
+        archive="$downloaded_archive"
+      else
+        warn "La URL debe empezar por https://. Se cancela la descarga."
+      fi
+    fi
+  fi
+
+  if [[ -n "$archive" && -f "$archive" ]]; then
     sudo rm -rf /opt/android-studio
     sudo tar -xzf "$archive" -C /opt
     ok "Android Studio instalado en /opt/android-studio"
     printf "Arranque: /opt/android-studio/bin/studio\n"
   else
-    warn "No encuentro android-studio-*-linux.tar.gz en ~/Downloads o ~/Descargas."
-    warn "Descárgalo desde la web oficial de Android Studio y vuelve a ejecutar esta opción."
+    warn "Android Studio queda pendiente. Descárgalo desde la página oficial y vuelve a ejecutar esta opción."
   fi
+
+  [[ -n "$downloaded_archive" && -f "$downloaded_archive" ]] && rm -f "$downloaded_archive"
 }
 
 install_vscode_apt() {
