@@ -125,6 +125,14 @@ else
   warn "Brave" "no encontrado"
 fi
 
+if command -v bruno >/dev/null 2>&1; then
+  ok "Bruno" "$(bruno --version 2>/dev/null | head -n1)"
+elif snap list bruno >/dev/null 2>&1; then
+  ok "Bruno (Snap)" "$(snap list bruno | awk 'NR==2 {print $2}')"
+else
+  warn "Bruno" "no encontrado"
+fi
+
 if command -v intellij-idea >/dev/null 2>&1; then
   ok "IntelliJ IDEA" "Snap/CLI disponible"
 elif snap list intellij-idea >/dev/null 2>&1; then
