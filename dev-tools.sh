@@ -1,140 +1,162 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Developer tools for Ubuntu.
-# Installs NVM/Node LTS, SDKMAN!/Java, uv, Flutter+FVM,
-# VS Code, Brave, Android Studio dependencies.
-# Android Studio and JetBrains Toolbox tarballs are installed automatically
-# if found in ~/Downloads or ~/Descargas.
+# Interactive developer tool installer.
+# Safe to re-run. Installs only what the user selects.
 
-INSTALL_BRAVE=1
-INSTALL_FLUTTER=1
-INSTALL_ANDROID_STUDIO=1
-INSTALL_JETBRAINS_TOOLBOX=1
+BLUE='\033[1;34m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[1;36m'
+RESET='\033[0m'
 
-for arg in "$@"; do
-  case "$arg" in
-    --no-brave) INSTALL_BRAVE=0 ;;
-    --no-flutter) INSTALL_FLUTTER=0 ;;
-    --no-android-studio) INSTALL_ANDROID_STUDIO=0 ;;
-    --no-jetbrains-toolbox) INSTALL_JETBRAINS_TOOLBOX=0 ;;
-    -h|--help)
-      cat <<'EOF'
-Usage: ./dev-tools.sh [options]
-
-Options:
-  --no-brave
-  --no-flutter
-  --no-android-studio
-  --no-jetbrains-toolbox
-EOF
-      exit 0
-      ;;
-    *) echo "Unknown option: $arg" >&2; exit 2 ;;
-  esac
-done
-
-log() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
-ok()  { printf '\033[1;32m[OK]\033[0m %s\n' "$*"; }
-warn(){ printf '\033[1;33m[WARN]\033[0m %s\n' "$*"; }
+log()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+ok()   { printf '\033[1;32m[OK]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[WARN]\033[0m %s\n' "$*"; }
 
 if [[ "${EUID}" -eq 0 ]]; then
-  echo "Run this script as your normal user, not as root." >&2
+  echo "Ejecuta este script con tu usuario normal, no como root." >&2
   exit 1
 fi
 
-log "Installing development dependencies"
-sudo apt update
-sudo DEBIAN_FRONTEND=noninteractive apt install -y \
-  curl wget git ca-certificates gnupg build-essential \
-  clang cmake ninja-build pkg-config libgtk-3-dev libglu1-mesa \
-  unzip zip xz-utils \
-  libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
-
-# NVM + Node LTS
-log "Installing NVM and Node LTS"
-export NVM_DIR="$HOME/.nvm"
-if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
-fi
-# shellcheck disable=SC1090
-source "$NVM_DIR/nvm.sh"
-nvm install --lts
-nvm alias default 'lts/*'
-ok "Node $(node -v) via NVM"
-
-# SDKMAN + Java 21 Temurin
-log "Installing SDKMAN and Java 21 (Temurin)"
-if [[ ! -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
-  curl -s "https://get.sdkman.io" | bash
-fi
-# shellcheck disable=SC1090
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-if ! sdk current java 2>/dev/null | grep -q '21.*tem'; then
-  # Resolve the current Temurin 21 identifier dynamically from SDKMAN.
-  JAVA_ID="$(sdk list java | awk '/21\..*-tem/ && /\|/ {gsub(/^[ \t]+|[ \t]+$/, "", $NF); print $NF; exit}')"
-  if [[ -n "${JAVA_ID:-}" ]]; then
-    sdk install java "$JAVA_ID" || true
-    sdk default java "$JAVA_ID" || true
-  else
-    warn "Could not resolve a Temurin 21 identifier automatically. Run: sdk list java"
+ensure_snap() {
+  if ! command -v snap >/dev/null 2>&1; then
+    log "Instalando snapd"
+    sudo apt update
+    sudo apt install -y snapd
   fi
-fi
-java -version 2>&1 | head -n 1 || true
+}
 
-# uv
-log "Installing uv"
-if ! command -v uv >/dev/null 2>&1; then
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-fi
-export PATH="$HOME/.local/bin:$PATH"
-uv --version
+ask_yes_no() {
+  local prompt="$1" default="${2:-n}" answer
+  local hint="[y/N]"
+  [[ "$default" == "y" ]] && hint="[Y/n]"
+  read -r -p "$prompt $hint " answer
+  answer="${answer:-$default}"
+  [[ "$answer" =~ ^[YySs]$ ]]
+}
 
-# VS Code - official Microsoft APT repository
-log "Installing Visual Studio Code"
-if ! command -v code >/dev/null 2>&1; then
-  wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor \
-    | sudo tee /usr/share/keyrings/packages.microsoft.gpg >/dev/null
+choose_method() {
+  local app="$1" primary="$2"
+  printf "\n${CYAN}%s${RESET}\n" "$app" >&2
+  printf "  1) %s\n" "$primary" >&2
+  printf "  2) Snap\n" >&2
+  printf "  0) No instalar\n" >&2
+  while true; do
+    read -r -p "Método: " method
+    case "$method" in
+      1|2|0) printf '%s\n' "$method"; return 0 ;;
+      *) warn "Opción no válida" ;;
+    esac
+  done
+}
 
-  sudo tee /etc/apt/sources.list.d/vscode.sources >/dev/null <<'EOF'
-Types: deb
-URIs: https://packages.microsoft.com/repos/code
-Suites: stable
-Components: main
-Architectures: amd64,arm64,armhf
-Signed-By: /usr/share/keyrings/packages.microsoft.gpg
-EOF
+# Toggle menu. Usage: toggle_menu "Title" names_array selected_array
+toggle_menu() {
+  local title="$1"
+  local -n _names="$2"
+  local -n _selected="$3"
+  local input i
 
+  while true; do
+    printf "\n${CYAN}%s${RESET}\n" "$title"
+    for i in "${!_names[@]}"; do
+      if [[ "${_selected[$i]}" -eq 1 ]]; then
+        printf "  %d) [x] %s\n" "$((i+1))" "${_names[$i]}"
+      else
+        printf "  %d) [ ] %s\n" "$((i+1))" "${_names[$i]}"
+      fi
+    done
+    printf "  a) Marcar todo\n"
+    printf "  n) Desmarcar todo\n"
+    printf "  c) Continuar\n"
+    read -r -p "Alterna una opción: " input
+
+    case "$input" in
+      a|A) for i in "${!_selected[@]}"; do _selected[$i]=1; done ;;
+      n|N) for i in "${!_selected[@]}"; do _selected[$i]=0; done ;;
+      c|C|"") return 0 ;;
+      *)
+        if [[ "$input" =~ ^[0-9]+$ ]] && (( input >= 1 && input <= ${#_names[@]} )); then
+          i=$((input-1))
+          _selected[$i]=$((1 - _selected[$i]))
+        else
+          warn "Opción no válida"
+        fi
+        ;;
+    esac
+  done
+}
+
+install_git() {
+  log "Instalando Git"
   sudo apt update
-  sudo DEBIAN_FRONTEND=noninteractive apt install -y code
-fi
-ok "VS Code installed"
+  sudo apt install -y git
+  ok "$(git --version)"
+}
 
-# Brave - official Brave APT repository
-if [[ "$INSTALL_BRAVE" -eq 1 ]]; then
-  log "Installing Brave from its official APT repository"
-  sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
-    https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-  sudo curl -fsSLo /etc/apt/sources.list.d/brave-browser-release.sources \
-    https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
-  sudo apt update
-  sudo DEBIAN_FRONTEND=noninteractive apt install -y brave-browser
-  ok "Brave installed"
-fi
+install_nvm_node() {
+  log "Instalando NVM y Node LTS"
+  sudo apt install -y curl ca-certificates
+  export NVM_DIR="$HOME/.nvm"
+  if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+  fi
+  # shellcheck disable=SC1090
+  source "$NVM_DIR/nvm.sh"
+  nvm install --lts
+  nvm alias default 'lts/*'
+  ok "Node $(node -v) mediante NVM $(nvm --version)"
+}
 
-# Flutter bootstrap + FVM
-if [[ "$INSTALL_FLUTTER" -eq 1 ]]; then
-  log "Installing Flutter bootstrap SDK and FVM"
-  FLUTTER_BOOTSTRAP="$HOME/.local/share/flutter-bootstrap"
-  if [[ ! -d "$FLUTTER_BOOTSTRAP/.git" ]]; then
-    mkdir -p "$(dirname "$FLUTTER_BOOTSTRAP")"
-    git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$FLUTTER_BOOTSTRAP"
+install_sdkman_java() {
+  log "Instalando SDKMAN! y Java 21 Temurin"
+  sudo apt install -y curl zip unzip
+  if [[ ! -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
+    curl -s "https://get.sdkman.io" | bash
+  fi
+  # shellcheck disable=SC1090
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+  local java_id
+  java_id="$(sdk list java | awk -F'|' '/21\..*-tem/ {gsub(/^[ \t]+|[ \t]+$/, "", $NF); if ($NF != "") {print $NF; exit}}')"
+  if [[ -n "$java_id" ]]; then
+    if ! sdk current java 2>/dev/null | grep -q "$java_id"; then
+      sdk install java "$java_id" || true
+    fi
+    sdk default java "$java_id" || true
+    java -version 2>&1 | head -n1
   else
-    git -C "$FLUTTER_BOOTSTRAP" pull --ff-only || true
+    warn "No he podido resolver automáticamente Java 21 Temurin. Ejecuta: sdk list java"
+  fi
+}
+
+install_uv() {
+  log "Instalando uv"
+  sudo apt install -y curl ca-certificates
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  fi
+  export PATH="$HOME/.local/bin:$PATH"
+  ok "$(uv --version)"
+}
+
+install_flutter_fvm() {
+  log "Instalando dependencias Flutter, SDK bootstrap y FVM"
+  sudo apt update
+  sudo apt install -y \
+    curl git unzip xz-utils zip libglu1-mesa \
+    clang cmake ninja-build pkg-config libgtk-3-dev
+
+  local flutter_bootstrap="$HOME/.local/share/flutter-bootstrap"
+  if [[ ! -d "$flutter_bootstrap/.git" ]]; then
+    mkdir -p "$(dirname "$flutter_bootstrap")"
+    git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$flutter_bootstrap"
+  else
+    git -C "$flutter_bootstrap" pull --ff-only || true
   fi
 
-  export PATH="$FLUTTER_BOOTSTRAP/bin:$HOME/.pub-cache/bin:$PATH"
+  export PATH="$flutter_bootstrap/bin:$HOME/.pub-cache/bin:$PATH"
   flutter --version
 
   if ! command -v fvm >/dev/null 2>&1; then
@@ -144,15 +166,14 @@ if [[ "$INSTALL_FLUTTER" -eq 1 ]]; then
   if ! grep -Fq 'flutter-bootstrap/bin' "$HOME/.bashrc"; then
     cat >>"$HOME/.bashrc" <<'EOF'
 
-# Flutter bootstrap SDK (provides Dart for FVM)
+# Flutter bootstrap SDK (Dart para FVM)
 export PATH="$HOME/.local/share/flutter-bootstrap/bin:$HOME/.pub-cache/bin:$PATH"
 EOF
   fi
 
-  fvm --version
   fvm install stable
-  ok "FVM installed; use 'fvm use <version>' inside each Flutter project"
-fi
+  ok "FVM $(fvm --version)"
+}
 
 find_download() {
   local pattern="$1"
@@ -166,47 +187,152 @@ find_download() {
   return 1
 }
 
-# Android Studio official tarball
-if [[ "$INSTALL_ANDROID_STUDIO" -eq 1 ]]; then
-  log "Looking for Android Studio tarball"
-  if ANDROID_TGZ="$(find_download 'android-studio-*-linux.tar.gz')"; then
+install_android_studio() {
+  log "Instalando dependencias de Android Studio"
+  sudo dpkg --add-architecture i386
+  sudo apt update
+  sudo apt install -y libc6:i386 libncurses6:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
+
+  local archive
+  if archive="$(find_download 'android-studio-*-linux.tar.gz')"; then
     sudo rm -rf /opt/android-studio
-    sudo tar -xzf "$ANDROID_TGZ" -C /opt
-    ok "Android Studio installed at /opt/android-studio"
-    echo "Start it with: /opt/android-studio/bin/studio"
+    sudo tar -xzf "$archive" -C /opt
+    ok "Android Studio instalado en /opt/android-studio"
+    printf "Arranque: /opt/android-studio/bin/studio\n"
   else
-    warn "Android Studio tarball not found in ~/Downloads or ~/Descargas."
-    warn "Download the current Linux .tar.gz from developer.android.com/studio and rerun this script."
+    warn "No encuentro android-studio-*-linux.tar.gz en ~/Downloads o ~/Descargas."
+    warn "Descárgalo desde la web oficial de Android Studio y vuelve a ejecutar esta opción."
   fi
-fi
+}
 
-# JetBrains Toolbox official tarball
-if [[ "$INSTALL_JETBRAINS_TOOLBOX" -eq 1 ]]; then
-  log "Looking for JetBrains Toolbox tarball"
-  if TOOLBOX_TGZ="$(find_download 'jetbrains-toolbox-*.tar.gz')"; then
-    TMP_DIR="$(mktemp -d)"
-    tar -xzf "$TOOLBOX_TGZ" -C "$TMP_DIR"
-    TOOLBOX_BIN="$(find "$TMP_DIR" -type f -path '*/bin/jetbrains-toolbox' | head -n1 || true)"
-    if [[ -n "$TOOLBOX_BIN" ]]; then
+install_vscode_apt() {
+  log "Instalando VS Code desde el repositorio oficial de Microsoft"
+  sudo apt install -y wget gpg
+  wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor \
+    | sudo tee /usr/share/keyrings/packages.microsoft.gpg >/dev/null
+  sudo tee /etc/apt/sources.list.d/vscode.sources >/dev/null <<'EOF'
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64,arm64,armhf
+Signed-By: /usr/share/keyrings/packages.microsoft.gpg
+EOF
+  sudo apt update
+  sudo apt install -y code
+}
+
+install_vscode_snap() {
+  ensure_snap
+  sudo snap install code --classic
+}
+
+install_brave_apt() {
+  log "Instalando Brave desde su repositorio oficial"
+  sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
+    https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+  sudo curl -fsSLo /etc/apt/sources.list.d/brave-browser-release.sources \
+    https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+  sudo apt update
+  sudo apt install -y brave-browser
+}
+
+install_brave_snap() {
+  ensure_snap
+  sudo snap install brave
+}
+
+install_intellij_toolbox() {
+  log "Instalando JetBrains Toolbox"
+  sudo apt update
+  sudo apt install -y \
+    libxi6 libxrender1 libxtst6 mesa-utils libfontconfig1 \
+    libgtk-3-bin dbus-user-session libxcb-keysyms1
+  local archive tmp toolbox_bin
+  if archive="$(find_download 'jetbrains-toolbox-*.tar.gz')"; then
+    tmp="$(mktemp -d)"
+    tar -xzf "$archive" -C "$tmp"
+    toolbox_bin="$(find "$tmp" -type f -path '*/bin/jetbrains-toolbox' | head -n1 || true)"
+    if [[ -n "$toolbox_bin" ]]; then
       mkdir -p "$HOME/.local/opt/jetbrains-toolbox"
-      cp -a "$(dirname "$(dirname "$TOOLBOX_BIN")")/." "$HOME/.local/opt/jetbrains-toolbox/"
-      ok "JetBrains Toolbox copied to ~/.local/opt/jetbrains-toolbox"
-      echo "Start it with: ~/.local/opt/jetbrains-toolbox/bin/jetbrains-toolbox"
+      cp -a "$(dirname "$(dirname "$toolbox_bin")")/." "$HOME/.local/opt/jetbrains-toolbox/"
+      ok "Toolbox instalado en ~/.local/opt/jetbrains-toolbox"
+      printf "Ábrelo e instala IntelliJ IDEA desde allí.\n"
     else
-      warn "Could not locate jetbrains-toolbox binary in the archive."
+      warn "No encuentro el ejecutable de Toolbox dentro del archivo."
     fi
-    rm -rf "$TMP_DIR"
+    rm -rf "$tmp"
   else
-    warn "JetBrains Toolbox tarball not found in ~/Downloads or ~/Descargas."
-    warn "Download it from jetbrains.com/toolbox-app and rerun this script."
+    warn "No encuentro jetbrains-toolbox-*.tar.gz en ~/Downloads o ~/Descargas."
+    warn "Descárgalo desde JetBrains Toolbox y vuelve a ejecutar esta opción."
   fi
+}
+
+install_intellij_snap() {
+  ensure_snap
+  sudo snap install intellij-idea --classic
+}
+
+core_names=("Git" "NVM + Node LTS" "SDKMAN! + Java 21" "uv")
+core_selected=(1 1 1 1)
+mobile_names=("Flutter + FVM" "Android Studio")
+mobile_selected=(1 1)
+apps_names=("VS Code" "IntelliJ IDEA" "Brave")
+apps_selected=(1 1 1)
+
+printf "${CYAN}Configuración de herramientas de desarrollo${RESET}\n"
+toggle_menu "1/3 · Herramientas base" core_names core_selected
+toggle_menu "2/3 · Desarrollo móvil" mobile_names mobile_selected
+toggle_menu "3/3 · IDEs y navegador" apps_names apps_selected
+
+printf "\n${BLUE}Resumen de selección${RESET}\n"
+for i in "${!core_names[@]}"; do [[ "${core_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${core_names[$i]}"; done
+for i in "${!mobile_names[@]}"; do [[ "${mobile_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${mobile_names[$i]}"; done
+for i in "${!apps_names[@]}"; do [[ "${apps_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${apps_names[$i]}"; done
+
+if ! ask_yes_no "¿Continuar con la instalación?" y; then
+  echo "Cancelado."
+  exit 0
 fi
 
-log "Developer tools stage finished"
+[[ "${core_selected[0]}" -eq 1 ]] && install_git
+[[ "${core_selected[1]}" -eq 1 ]] && install_nvm_node
+[[ "${core_selected[2]}" -eq 1 ]] && install_sdkman_java
+[[ "${core_selected[3]}" -eq 1 ]] && install_uv
+
+[[ "${mobile_selected[0]}" -eq 1 ]] && install_flutter_fvm
+[[ "${mobile_selected[1]}" -eq 1 ]] && install_android_studio
+
+if [[ "${apps_selected[0]}" -eq 1 ]]; then
+  method="$(choose_method "VS Code" "Repositorio APT oficial de Microsoft")"
+  case "$method" in
+    1) install_vscode_apt ;;
+    2) install_vscode_snap ;;
+  esac
+fi
+
+if [[ "${apps_selected[1]}" -eq 1 ]]; then
+  method="$(choose_method "IntelliJ IDEA" "JetBrains Toolbox")"
+  case "$method" in
+    1) install_intellij_toolbox ;;
+    2) install_intellij_snap ;;
+  esac
+fi
+
+if [[ "${apps_selected[2]}" -eq 1 ]]; then
+  method="$(choose_method "Brave" "Repositorio APT oficial de Brave")"
+  case "$method" in
+    1) install_brave_apt ;;
+    2) install_brave_snap ;;
+  esac
+fi
+
+log "Herramientas de desarrollo terminadas"
 cat <<'EOF'
-Still intentionally interactive/manual:
-  - Android Studio first-run wizard: Android SDK, Platform Tools, Emulator, Command-line Tools.
-  - Android SDK licences: run 'fvm flutter doctor --android-licenses' after Studio setup.
-  - JetBrains Toolbox first run, then install IntelliJ IDEA.
-  - Git identity and SSH keys (post-install.sh helps with the non-secret parts).
+Pendiente de forma intencionadamente interactiva:
+  - Android Studio: completar el asistente de SDK/Emulator/Command-line Tools.
+  - Flutter: fvm flutter doctor --android-licenses
+  - JetBrains Toolbox: abrir Toolbox e instalar IntelliJ si elegiste ese método.
+  - Git/SSH: identidad y claves se revisan en post-install.sh.
 EOF
