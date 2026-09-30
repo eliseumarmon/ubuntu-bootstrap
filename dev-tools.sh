@@ -292,6 +292,33 @@ install_android_studio() {
   fi
 }
 
+install_network_tools() {
+  log "Instalando herramientas de red"
+  sudo apt update
+  sudo apt install -y \
+    dnsutils \
+    netcat-openbsd \
+    traceroute \
+    whois \
+    iperf3
+
+  ok "Herramientas de red instaladas: dig, nc, traceroute, whois, iperf3"
+}
+
+install_mkcert() {
+  log "Instalando mkcert y soporte NSS"
+  sudo apt update
+  sudo apt install -y mkcert libnss3-tools
+
+  ok "mkcert $(mkcert --version 2>/dev/null || true)"
+
+  warn "La CA local de mkcert incluye una clave privada raíz. No compartas rootCA-key.pem."
+  if ask_yes_no "¿Crear/instalar ahora la CA local de mkcert en los almacenes de confianza?" y; then
+    mkcert -install
+    ok "CA local de mkcert instalada"
+  fi
+}
+
 install_vscode_apt() {
   log "Instalando VS Code desde el repositorio oficial de Microsoft"
   sudo apt install -y wget gpg
@@ -367,16 +394,20 @@ mobile_names=("Flutter + FVM" "Android Studio")
 mobile_selected=(1 1)
 apps_names=("VS Code" "IntelliJ IDEA" "Brave")
 apps_selected=(1 1 1)
+utility_names=("Herramientas de red (dig, nc, traceroute, whois, iperf3)" "mkcert + CA local")
+utility_selected=(1 1)
 
 printf "${CYAN}Configuración de herramientas de desarrollo${RESET}\n"
-toggle_menu "1/3 · Herramientas base" core_names core_selected
-toggle_menu "2/3 · Desarrollo móvil" mobile_names mobile_selected
-toggle_menu "3/3 · IDEs y navegador" apps_names apps_selected
+toggle_menu "1/4 · Herramientas base" core_names core_selected
+toggle_menu "2/4 · Desarrollo móvil" mobile_names mobile_selected
+toggle_menu "3/4 · IDEs y navegador" apps_names apps_selected
+toggle_menu "4/4 · Utilidades de desarrollo" utility_names utility_selected
 
 printf "\n${BLUE}Resumen de selección${RESET}\n"
 for i in "${!core_names[@]}"; do [[ "${core_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${core_names[$i]}"; done
 for i in "${!mobile_names[@]}"; do [[ "${mobile_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${mobile_names[$i]}"; done
 for i in "${!apps_names[@]}"; do [[ "${apps_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${apps_names[$i]}"; done
+for i in "${!utility_names[@]}"; do [[ "${utility_selected[$i]}" -eq 1 ]] && printf "  + %s\n" "${utility_names[$i]}"; done
 
 if ! ask_yes_no "¿Continuar con la instalación?" y; then
   echo "Cancelado."
@@ -390,6 +421,9 @@ fi
 
 [[ "${mobile_selected[0]}" -eq 1 ]] && install_flutter_fvm
 [[ "${mobile_selected[1]}" -eq 1 ]] && install_android_studio
+
+[[ "${utility_selected[0]}" -eq 1 ]] && install_network_tools
+[[ "${utility_selected[1]}" -eq 1 ]] && install_mkcert
 
 if [[ "${apps_selected[0]}" -eq 1 ]]; then
   method="$(choose_method "VS Code" "Repositorio APT oficial de Microsoft")"
