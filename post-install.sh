@@ -132,7 +132,17 @@ if ask_yes_no "¿Instalar o actualizar Oh My Posh?" y; then
       oh-my-posh font install 0xProto
       command -v fc-cache >/dev/null 2>&1 && fc-cache -f
       ok "0xProto Nerd Font instalada para el usuario"
-      printf "Selecciona '0xProto Nerd Font' en el perfil de tu terminal y, si quieres, en la terminal integrada de VS Code.\n"
+
+      if command -v gsettings >/dev/null 2>&1 \
+        && gsettings list-schemas 2>/dev/null | grep -qx 'org.gnome.Ptyxis'; then
+        if ask_yes_no "¿Aplicar 0xProto Nerd Font Mono 12 a Ptyxis?" y; then
+          gsettings set org.gnome.Ptyxis use-system-font false
+          gsettings set org.gnome.Ptyxis font-name '0xProto Nerd Font Mono 12'
+          ok "Ptyxis configurado con 0xProto Nerd Font Mono 12"
+        fi
+      else
+        warn "Ptyxis no detectado; la fuente queda instalada pero no se cambia ningún terminal."
+      fi
     fi
 
     if ask_yes_no "¿Activar Oh My Posh automáticamente en Bash?" y; then
