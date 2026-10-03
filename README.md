@@ -131,6 +131,7 @@ También ofrece un flujo de personalización de terminal:
 
 - instala/actualiza Oh My Posh mediante su instalador oficial
 - instala opcionalmente `0xProto Nerd Font`
+- si detecta Ptyxis, puede aplicar automáticamente `0xProto Nerd Font Mono 12` mediante GSettings
 - puede activar Oh My Posh automáticamente en Bash mediante `~/.bashrc`
 
 Después pregunta qué infraestructura Docker quieres preparar.
@@ -180,6 +181,7 @@ Comprueba:
 - mkcert y estado de su CA local
 - Oh My Posh
 - 0xProto Nerd Font
+- fuente configurada en Ptyxis
 - FVM
 - VS Code
 - IntelliJ IDEA / Toolbox
