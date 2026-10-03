@@ -336,11 +336,26 @@ EOF
       sudo update-desktop-database /usr/local/share/applications >/dev/null 2>&1 || true
     fi
 
+    if ! grep -Fq '# Ubuntu Developer Center - Android SDK' "$HOME/.bashrc"; then
+      cat >>"$HOME/.bashrc" <<'EOF'
+
+# Ubuntu Developer Center - Android SDK
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+EOF
+    fi
+
+    export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+    export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
     ok "Android Studio instalado en /opt/android-studio"
     ok "Comando global disponible: studio"
     ok "Lanzador de Android Studio instalado en el menú de aplicaciones"
+    ok "ANDROID_HOME y rutas del SDK añadidas a ~/.bashrc"
     printf "Archivo: %s\n" "$archive"
     printf "Arranque CLI: studio\n"
+    printf "SDK esperado: %s\n" "$ANDROID_HOME"
+    printf "Abre una terminal nueva tras completar el asistente de Android Studio.\n"
   fi
 }
 
