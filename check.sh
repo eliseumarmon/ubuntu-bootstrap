@@ -75,7 +75,18 @@ if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
     set +u
     # shellcheck disable=SC1090
     source "$HOME/.sdkman/bin/sdkman-init.sh"
-    sdk version 2>/dev/null | tail -n1
+
+    sdk_output="$(sdk version 2>&1 || true)"
+    script_version="$(printf '%s\n' "$sdk_output" | awk -F': ' '/^script:/ {print $2; exit}')"
+    native_version="$(printf '%s\n' "$sdk_output" | awk -F': ' '/^native:/ {print $2; exit}')"
+
+    if [[ -n "$script_version" && -n "$native_version" ]]; then
+      printf 'script %s · native %s\n' "$script_version" "$native_version"
+    elif [[ -n "$script_version" ]]; then
+      printf 'script %s\n' "$script_version"
+    else
+      printf '%s\n' "$sdk_output" | sed '/^[[:space:]]*$/d' | tail -n1
+    fi
   )"
   if [[ -n "$sdkman_version" ]]; then
     ok "SDKMAN" "$sdkman_version"
