@@ -112,23 +112,36 @@ install_nvm_node() {
 install_sdkman_java() {
   log "Instalando SDKMAN! y Java 21 Temurin"
   sudo apt install -y curl zip unzip
+
   if [[ ! -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
     curl -s "https://get.sdkman.io" | bash
   fi
-  # shellcheck disable=SC1090
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
 
-  local java_id
-  java_id="$(sdk list java | awk -F'|' '/21\..*-tem/ {gsub(/^[ \t]+|[ \t]+$/, "", $NF); if ($NF != "") {print $NF; exit}}')"
-  if [[ -n "$java_id" ]]; then
-    if ! sdk current java 2>/dev/null | grep -q "$java_id"; then
-      sdk install java "$java_id" || true
+  # SDKMAN! no es compatible con Bash nounset (set -u) en todas sus rutas:
+  # algunas versiones consultan variables opcionales como ZSH_VERSION sin valor
+  # por defecto. Lo aislamos en un subshell sin nounset para no relajar el resto
+  # de este instalador.
+  (
+    set +u
+    # shellcheck disable=SC1090
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+    java_id="$(sdk list java | awk -F'|' '/21\..*-tem/ {gsub(/^[ \t]+|[ \t]+$/, "", $NF); if ($NF != "") {print $NF; exit}}')"
+
+    if [[ -n "$java_id" ]]; then
+      if ! sdk current java 2>/dev/null | grep -q "$java_id"; then
+        sdk install java "$java_id"
+      fi
+      sdk default java "$java_id"
+      java -version 2>&1 | head -n1
+    else
+      printf '\033[1;33m[WARN]\033[0m %s\n' \
+        "No he podido resolver automáticamente Java 21 Temurin. Ejecuta: sdk list java"
+      exit 1
     fi
-    sdk default java "$java_id" || true
-    java -version 2>&1 | head -n1
-  else
-    warn "No he podido resolver automáticamente Java 21 Temurin. Ejecuta: sdk list java"
-  fi
+  )
+
+  ok "SDKMAN! y Java 21 Temurin configurados"
 }
 
 install_uv() {
