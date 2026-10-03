@@ -69,6 +69,7 @@ else
   warn "NVM" "no encontrado"
 fi
 
+java_checked=0
 if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
   sdkman_version="$(
     set +u
@@ -81,11 +82,24 @@ if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
   else
     warn "SDKMAN" "instalado, pero no se pudo obtener la versión"
   fi
+
+  sdkman_java_version="$(
+    set +u
+    # shellcheck disable=SC1090
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    java -version 2>&1 | head -n1 || true
+  )"
+  if [[ -n "$sdkman_java_version" ]]; then
+    ok "Java (SDKMAN)" "$sdkman_java_version"
+    java_checked=1
+  fi
 else
   warn "SDKMAN" "no encontrado"
 fi
 
-check_cmd "Java" java 'java -version 2>&1'
+if [[ "$java_checked" -eq 0 ]]; then
+  check_cmd "Java" java 'java -version 2>&1'
+fi
 check_cmd "uv" uv 'uv --version'
 
 check_cmd "dig" dig 'dig -v 2>&1'
