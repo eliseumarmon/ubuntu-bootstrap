@@ -51,6 +51,21 @@ choose_method() {
   done
 }
 
+choose_bruno_method() {
+  local method
+  printf "\n${CYAN}Bruno${RESET}\n" >&2
+  printf "  1) Repositorio APT oficial de Bruno (recomendado en Ubuntu)\n" >&2
+  printf "  2) Snap (problemas conocidos de fuentes/diálogos en Ubuntu)\n" >&2
+  printf "  0) No instalar\n" >&2
+  while true; do
+    read -r -p "Método: " method
+    case "$method" in
+      1|2|0) printf '%s\n' "$method"; return 0 ;;
+      *) warn "Opción no válida" ;;
+    esac
+  done
+}
+
 # Toggle menu. Usage: toggle_menu "Title" names_array selected_array
 toggle_menu() {
   local title="$1"
@@ -200,8 +215,64 @@ find_download() {
   return 1
 }
 
+configure_android_studio_integration() {
+  if [[ ! -x /opt/android-studio/bin/studio ]]; then
+    warn "No existe /opt/android-studio/bin/studio; no puedo configurar la integración."
+    return 1
+  fi
+
+  sudo ln -sfn /opt/android-studio/bin/studio /usr/local/bin/studio
+
+  sudo mkdir -p /usr/local/share/applications
+  sudo tee /usr/local/share/applications/android-studio.desktop >/dev/null <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Android Studio
+Comment=Android development environment
+Exec=/opt/android-studio/bin/studio %f
+Icon=/opt/android-studio/bin/studio.svg
+Terminal=false
+Categories=Development;IDE;
+StartupNotify=true
+StartupWMClass=jetbrains-studio
+EOF
+
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    sudo update-desktop-database /usr/local/share/applications >/dev/null 2>&1 || true
+  fi
+
+  if ! grep -Fq '# Ubuntu Developer Center - Android SDK' "$HOME/.bashrc"; then
+    cat >>"$HOME/.bashrc" <<'EOF'
+
+# Ubuntu Developer Center - Android SDK
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+EOF
+  fi
+
+  export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+  export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+  ok "Comando global disponible: studio"
+  ok "Lanzador de Android Studio instalado en el menú de aplicaciones"
+  ok "ANDROID_HOME y rutas del SDK configuradas"
+}
+
 install_android_studio() {
-  log "Preparando Android Studio desde la página oficial"
+  log "Preparando Android Studio"
+
+  if [[ -x /opt/android-studio/bin/studio ]]; then
+    ok "Android Studio ya está instalado en /opt/android-studio"
+
+    if ! ask_yes_no "¿Reinstalar/actualizar Android Studio?" n; then
+      log "Conservando la instalación actual y reparando la integración"
+      configure_android_studio_integration
+      printf "SDK esperado: %s\n" "${ANDROID_HOME:-$HOME/Android/Sdk}"
+      return 0
+    fi
+  fi
+
   sudo dpkg --add-architecture i386
   sudo apt update
   sudo apt install -y \
@@ -224,7 +295,6 @@ install_android_studio() {
     log "Descargando el nodo de descarga Linux desde developer.android.com"
     curl -fsSL --compressed "https://developer.android.com/studio" -o "$page_html"
 
-    # Keep only the dialog that owns the Linux Studio licence checkbox.
     if ! xmllint --html --recover --xpath \
       '//input[@id="agree_studio_linux_bundle_download"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " devsite-dialog-contents ")][1]' \
       "$page_html" 2>/dev/null >"$dialog_html" || [[ ! -s "$dialog_html" ]]; then
@@ -233,7 +303,6 @@ install_android_studio() {
       return 1
     fi
 
-    # Extract the licence text from that downloaded node. Nothing is copied into this repository.
     xmllint --html --recover --xpath \
       'string(//div[contains(concat(" ", normalize-space(@class), " "), " sdk-terms ")])' \
       "$dialog_html" 2>/dev/null >"$license_txt" || true
@@ -256,13 +325,10 @@ install_android_studio() {
       return 0
     fi
 
-    # Represent the user's acceptance only in our local copy of the downloaded dialog.
-    # This does not modify or submit anything to Google's server.
     sed -E \
-      's/(<input[^>]*id="agree_studio_linux_bundle_download"[^>]*)(>)/\1 checked="checked"\2/' \
+      's/(<input[^>]*id="agree_studio_linux_bundle_download"[^>]*)(>)/\\1 checked="checked"\\2/' \
       "$dialog_html" >"$accepted_html"
 
-    # Extract the direct Linux tar.gz URL from the accepted dialog.
     studio_url="$(
       grep -oE 'https://edgedl\.me\.gvt1\.com/android/studio/ide-zips/[^"[:space:]<>]+/android-studio-[^"[:space:]<>]+-linux\.tar\.gz' \
         "$accepted_html" | head -n1 || true
@@ -299,9 +365,14 @@ install_android_studio() {
 
     sudo rm -rf /opt/android-studio
     sudo tar -xzf "$archive" -C /opt
+
+    configure_android_studio_integration
+
     ok "Android Studio instalado en /opt/android-studio"
-    printf "Archivo:  %s\n" "$archive"
-    printf "Arranque: /opt/android-studio/bin/studio\n"
+    printf "Archivo: %s\n" "$archive"
+    printf "Arranque CLI: studio\n"
+    printf "SDK esperado: %s\n" "$ANDROID_HOME"
+    printf "Abre una terminal nueva tras completar el asistente de Android Studio.\n"
   fi
 }
 
@@ -494,10 +565,13 @@ if [[ "${apps_selected[2]}" -eq 1 ]]; then
 fi
 
 if [[ "${apps_selected[3]}" -eq 1 ]]; then
-  method="$(choose_method "Bruno" "Repositorio APT oficial de Bruno")"
+  method="$(choose_bruno_method)"
   case "$method" in
     1) install_bruno_apt ;;
-    2) install_bruno_snap ;;
+    2)
+      warn "El Snap de Bruno tiene incidencias conocidas de fuentes/diálogos en Ubuntu."
+      install_bruno_snap
+      ;;
   esac
 fi
 

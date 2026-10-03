@@ -158,10 +158,12 @@ else
   warn "Brave" "no encontrado"
 fi
 
-if command -v bruno >/dev/null 2>&1; then
-  ok "Bruno" "$(bruno --version 2>/dev/null | head -n1)"
+if dpkg -s bruno >/dev/null 2>&1; then
+  ok "Bruno (APT)" "$(dpkg-query -W -f='${Version}' bruno 2>/dev/null)"
 elif snap list bruno >/dev/null 2>&1; then
-  ok "Bruno (Snap)" "$(snap list bruno | awk 'NR==2 {print $2}')"
+  warn "Bruno (Snap)" "$(snap list bruno | awk 'NR==2 {print $2}') · puede sufrir el bug de fuentes/diálogos en Ubuntu"
+elif command -v bruno >/dev/null 2>&1; then
+  ok "Bruno" "$(bruno --version 2>/dev/null | head -n1)"
 else
   warn "Bruno" "no encontrado"
 fi
@@ -177,7 +179,17 @@ else
 fi
 
 [[ -x /opt/android-studio/bin/studio ]] && ok "Android Studio" "/opt/android-studio" || warn "Android Studio" "no instalado en /opt/android-studio"
-command -v adb >/dev/null 2>&1 && ok "ADB" "$(adb version 2>/dev/null | head -n1)" || warn "ADB" "no está en PATH"
+command -v studio >/dev/null 2>&1 && ok "Android Studio CLI" "$(command -v studio)" || warn "Android Studio CLI" "comando studio no encontrado"
+[[ -f /usr/local/share/applications/android-studio.desktop ]] && ok "Android Studio menu" "lanzador instalado" || warn "Android Studio menu" "lanzador no encontrado"
+
+android_sdk="${ANDROID_HOME:-$HOME/Android/Sdk}"
+if command -v adb >/dev/null 2>&1; then
+  ok "ADB" "$(adb version 2>/dev/null | head -n1)"
+elif [[ -x "$android_sdk/platform-tools/adb" ]]; then
+  warn "ADB" "instalado en $android_sdk/platform-tools pero no está en el PATH de esta sesión"
+else
+  warn "ADB" "Platform-Tools no instalado todavía en $android_sdk"
+fi
 
 [[ -d "$HOME/dev/infrastructure" ]] && ok "Dev infrastructure" "$HOME/dev/infrastructure" || warn "Dev infrastructure" "ejecuta post-install.sh"
 

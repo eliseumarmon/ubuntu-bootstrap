@@ -68,6 +68,12 @@ Tiene selectores interactivos por secciones.
   - marca `checked="checked"` únicamente en la copia HTML temporal
   - extrae del mismo diálogo el enlace `edgedl.me.gvt1.com/...-linux.tar.gz`
   - descarga el archivo automáticamente con `curl -fL`
+  - si ya detecta `/opt/android-studio/bin/studio`, pregunta si quieres reinstalar/actualizar; por defecto conserva la instalación actual
+  - aunque no reinstale, repara/configura el comando `studio`, el lanzador del menú y las rutas del SDK
+  - crea el comando global `studio` mediante `/usr/local/bin/studio`
+  - instala un lanzador `.desktop` para que Android Studio aparezca en el menú de aplicaciones
+  - configura `ANDROID_HOME=$HOME/Android/Sdk`
+  - añade al `PATH` `platform-tools`, `emulator` y `cmdline-tools/latest/bin`; tras instalar Platform-Tools desde Android Studio, `adb` queda disponible en terminal
 
 **Utilidades de desarrollo**
 
@@ -88,7 +94,7 @@ Tiene selectores interactivos por secciones.
 - Brave
 - Bruno
 
-Bruno se instala como aplicación de escritorio para probar APIs y trabajar con colecciones locales versionables con Git.
+Bruno se instala como aplicación de escritorio para probar APIs y trabajar con colecciones locales versionables con Git. En Ubuntu se recomienda el paquete APT: el Snap de Bruno tiene incidencias conocidas donde algunos diálogos y selectores de archivos renderizan el texto como cuadrados.
 
 Para estas cuatro aplicaciones se puede elegir el método:
 
@@ -97,7 +103,7 @@ Para estas cuatro aplicaciones se puede elegir el método:
 | VS Code | repositorio APT oficial de Microsoft | Snap |
 | IntelliJ IDEA | JetBrains Toolbox | Snap |
 | Brave | repositorio APT oficial de Brave | Snap |
-| Bruno | repositorio APT oficial de Bruno | Snap |
+| Bruno | repositorio APT oficial de Bruno (**recomendado en Ubuntu**) | Snap (bug conocido de fuentes/diálogos en Ubuntu) |
 
 Los nombres de los snaps son:
 
@@ -187,7 +193,7 @@ Comprueba:
 - IntelliJ IDEA / Toolbox
 - Brave
 - Bruno
-- Android Studio / ADB
+- Android Studio / comando `studio` / lanzador del menú / ADB
 - infraestructura e imágenes Docker locales
 
 ## Arquitectura de runtimes
