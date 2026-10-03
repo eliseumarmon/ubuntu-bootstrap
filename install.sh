@@ -14,8 +14,8 @@ header() {
   printf "${CYAN}"
   cat <<'EOF'
 ╔══════════════════════════════════════════════════════════════╗
-║                 UBUNTU DEVELOPER CENTER                     ║
-║               workstation bootstrap 26.04                   ║
+║                   UBUNTU DEVELOPER CENTER                    ║
+║                 workstation bootstrap 26.04                  ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
   printf "${RESET}\n"
