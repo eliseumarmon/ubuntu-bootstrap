@@ -126,6 +126,17 @@ else
   warn "0xProto Nerd Font" "no encontrada"
 fi
 
+if command -v gsettings >/dev/null 2>&1 \
+  && gsettings list-schemas 2>/dev/null | grep -qx 'org.gnome.Ptyxis'; then
+  ptyxis_use_system_font="$(gsettings get org.gnome.Ptyxis use-system-font 2>/dev/null || true)"
+  ptyxis_font="$(gsettings get org.gnome.Ptyxis font-name 2>/dev/null || true)"
+  if [[ "$ptyxis_use_system_font" == "false" ]]; then
+    ok "Ptyxis font" "$ptyxis_font"
+  else
+    warn "Ptyxis font" "usa la fuente monoespaciada del sistema"
+  fi
+fi
+
 export PATH="$HOME/.pub-cache/bin:$HOME/.local/share/flutter-bootstrap/bin:$PATH"
 check_cmd "FVM" fvm 'fvm --version'
 
