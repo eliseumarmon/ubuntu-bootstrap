@@ -151,10 +151,10 @@ fi
 export PATH="$HOME/.pub-cache/bin:$HOME/.local/share/flutter-bootstrap/bin:$PATH"
 check_cmd "FVM" fvm 'fvm --version'
 
-if command -v code >/dev/null 2>&1; then
-  ok "VS Code" "$(code --version 2>/dev/null | head -n1)"
-elif snap list code >/dev/null 2>&1; then
-  ok "VS Code (Snap)" "$(snap list code | awk 'NR==2 {print $2}')"
+if dpkg -s code >/dev/null 2>&1; then
+  ok "VS Code (APT)" "$(dpkg-query -W -f='${Version}' code 2>/dev/null)"
+elif command -v snap >/dev/null 2>&1 && snap list code >/dev/null 2>&1; then
+  warn "VS Code (Snap)" "$(snap list code | awk 'NR==2 {print $2}') · se recomienda migrar al paquete APT"
 else
   warn "VS Code" "no encontrado"
 fi
