@@ -51,6 +51,21 @@ choose_method() {
   done
 }
 
+choose_bruno_method() {
+  local method
+  printf "\n${CYAN}Bruno${RESET}\n" >&2
+  printf "  1) Repositorio APT oficial de Bruno (recomendado en Ubuntu)\n" >&2
+  printf "  2) Snap (problemas conocidos de fuentes/diálogos en Ubuntu)\n" >&2
+  printf "  0) No instalar\n" >&2
+  while true; do
+    read -r -p "Método: " method
+    case "$method" in
+      1|2|0) printf '%s\n' "$method"; return 0 ;;
+      *) warn "Opción no válida" ;;
+    esac
+  done
+}
+
 # Toggle menu. Usage: toggle_menu "Title" names_array selected_array
 toggle_menu() {
   local title="$1"
@@ -299,9 +314,33 @@ install_android_studio() {
 
     sudo rm -rf /opt/android-studio
     sudo tar -xzf "$archive" -C /opt
+
+    sudo ln -sfn /opt/android-studio/bin/studio /usr/local/bin/studio
+
+    sudo mkdir -p /usr/local/share/applications
+    sudo tee /usr/local/share/applications/android-studio.desktop >/dev/null <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Android Studio
+Comment=Android development environment
+Exec=/opt/android-studio/bin/studio %f
+Icon=/opt/android-studio/bin/studio.svg
+Terminal=false
+Categories=Development;IDE;
+StartupNotify=true
+StartupWMClass=jetbrains-studio
+EOF
+
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      sudo update-desktop-database /usr/local/share/applications >/dev/null 2>&1 || true
+    fi
+
     ok "Android Studio instalado en /opt/android-studio"
-    printf "Archivo:  %s\n" "$archive"
-    printf "Arranque: /opt/android-studio/bin/studio\n"
+    ok "Comando global disponible: studio"
+    ok "Lanzador de Android Studio instalado en el menú de aplicaciones"
+    printf "Archivo: %s\n" "$archive"
+    printf "Arranque CLI: studio\n"
   fi
 }
 
@@ -494,10 +533,13 @@ if [[ "${apps_selected[2]}" -eq 1 ]]; then
 fi
 
 if [[ "${apps_selected[3]}" -eq 1 ]]; then
-  method="$(choose_method "Bruno" "Repositorio APT oficial de Bruno")"
+  method="$(choose_bruno_method)"
   case "$method" in
     1) install_bruno_apt ;;
-    2) install_bruno_snap ;;
+    2)
+      warn "El Snap de Bruno tiene incidencias conocidas de fuentes/diálogos en Ubuntu."
+      install_bruno_snap
+      ;;
   esac
 fi
 
