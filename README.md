@@ -70,6 +70,8 @@ Tiene selectores interactivos por secciones.
   - descarga el archivo automáticamente con `curl -fL`
   - crea el comando global `studio` mediante `/usr/local/bin/studio`
   - instala un lanzador `.desktop` para que Android Studio aparezca en el menú de aplicaciones
+  - configura `ANDROID_HOME=$HOME/Android/Sdk`
+  - añade al `PATH` `platform-tools`, `emulator` y `cmdline-tools/latest/bin`; tras instalar Platform-Tools desde Android Studio, `adb` queda disponible en terminal
 
 **Utilidades de desarrollo**
 
