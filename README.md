@@ -94,24 +94,22 @@ Tiene selectores interactivos por secciones.
 - Brave
 - Bruno
 
-Bruno se instala como aplicación de escritorio para probar APIs y trabajar con colecciones locales versionables con Git. En Ubuntu se recomienda el paquete APT: el Snap de Bruno tiene incidencias conocidas donde algunos diálogos y selectores de archivos renderizan el texto como cuadrados.
+VS Code se instala únicamente desde el repositorio APT oficial de Microsoft. Bruno se instala únicamente desde su repositorio APT oficial. Si el instalador detecta una instalación Snap previa de VS Code o Bruno, ofrece eliminarla antes de continuar para evitar conflictos.
 
-Para estas cuatro aplicaciones se puede elegir el método:
+IntelliJ IDEA y Brave mantienen dos métodos disponibles:
 
-| Aplicación | Método 1 | Método 2 |
+| Aplicación | Método principal | Alternativa |
 |---|---|---|
-| VS Code | repositorio APT oficial de Microsoft | Snap |
+| VS Code | repositorio APT oficial de Microsoft | — |
 | IntelliJ IDEA | JetBrains Toolbox | Snap |
 | Brave | repositorio APT oficial de Brave | Snap |
-| Bruno | repositorio APT oficial de Bruno (**recomendado en Ubuntu**) | Snap (bug conocido de fuentes/diálogos en Ubuntu) |
+| Bruno | repositorio APT oficial de Bruno | — |
 
-Los nombres de los snaps son:
+Los snaps que siguen disponibles desde el instalador son:
 
 ```bash
-sudo snap install code --classic
 sudo snap install intellij-idea --classic
 sudo snap install brave
-sudo snap install bruno
 ```
 
 ### `post-install.sh`
