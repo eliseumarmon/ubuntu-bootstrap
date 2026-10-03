@@ -51,21 +51,6 @@ choose_method() {
   done
 }
 
-choose_bruno_method() {
-  local method
-  printf "\n${CYAN}Bruno${RESET}\n" >&2
-  printf "  1) Repositorio APT oficial de Bruno (recomendado en Ubuntu)\n" >&2
-  printf "  2) Snap (problemas conocidos de fuentes/diálogos en Ubuntu)\n" >&2
-  printf "  0) No instalar\n" >&2
-  while true; do
-    read -r -p "Método: " method
-    case "$method" in
-      1|2|0) printf '%s\n' "$method"; return 0 ;;
-      *) warn "Opción no válida" ;;
-    esac
-  done
-}
-
 # Toggle menu. Usage: toggle_menu "Title" names_array selected_array
 toggle_menu() {
   local title="$1"
@@ -404,7 +389,17 @@ install_mkcert() {
 }
 
 install_vscode_apt() {
-  log "Instalando VS Code desde el repositorio oficial de Microsoft"
+  log "Instalando VS Code desde el repositorio APT oficial de Microsoft"
+
+  if command -v snap >/dev/null 2>&1 && snap list code >/dev/null 2>&1; then
+    warn "Se ha detectado VS Code instalado mediante Snap."
+    if ask_yes_no "¿Eliminar el Snap de VS Code antes de instalar el paquete APT?" y; then
+      sudo snap remove code
+    else
+      warn "El Snap seguirá instalado y puede tener prioridad en el PATH."
+    fi
+  fi
+
   sudo apt install -y wget gpg
   wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor \
@@ -419,11 +414,6 @@ Signed-By: /usr/share/keyrings/packages.microsoft.gpg
 EOF
   sudo apt update
   sudo apt install -y code
-}
-
-install_vscode_snap() {
-  ensure_snap
-  sudo snap install code --classic
 }
 
 install_brave_apt() {
@@ -445,9 +435,17 @@ install_bruno_apt() {
   log "Instalando Bruno desde su repositorio APT oficial"
 
   if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
-    warn "El repositorio APT oficial de Bruno documenta actualmente arch=amd64."
-    warn "Usa el método Snap en esta arquitectura."
+    warn "Este instalador usa actualmente el repositorio APT x86_64 de Bruno."
     return 1
+  fi
+
+  if command -v snap >/dev/null 2>&1 && snap list bruno >/dev/null 2>&1; then
+    warn "Se ha detectado Bruno instalado mediante Snap."
+    if ask_yes_no "¿Eliminar el Snap de Bruno antes de instalar el paquete APT?" y; then
+      sudo snap remove bruno
+    else
+      warn "El Snap seguirá instalado junto a la versión APT."
+    fi
   fi
 
   sudo mkdir -p /etc/apt/keyrings
@@ -465,11 +463,6 @@ install_bruno_apt() {
 
   sudo apt update
   sudo apt install -y bruno
-}
-
-install_bruno_snap() {
-  ensure_snap
-  sudo snap install bruno
 }
 
 install_intellij_toolbox() {
@@ -540,13 +533,7 @@ fi
 [[ "${utility_selected[0]}" -eq 1 ]] && install_network_tools
 [[ "${utility_selected[1]}" -eq 1 ]] && install_mkcert
 
-if [[ "${apps_selected[0]}" -eq 1 ]]; then
-  method="$(choose_method "VS Code" "Repositorio APT oficial de Microsoft")"
-  case "$method" in
-    1) install_vscode_apt ;;
-    2) install_vscode_snap ;;
-  esac
-fi
+[[ "${apps_selected[0]}" -eq 1 ]] && install_vscode_apt
 
 if [[ "${apps_selected[1]}" -eq 1 ]]; then
   method="$(choose_method "IntelliJ IDEA" "JetBrains Toolbox")"
@@ -564,16 +551,7 @@ if [[ "${apps_selected[2]}" -eq 1 ]]; then
   esac
 fi
 
-if [[ "${apps_selected[3]}" -eq 1 ]]; then
-  method="$(choose_bruno_method)"
-  case "$method" in
-    1) install_bruno_apt ;;
-    2)
-      warn "El Snap de Bruno tiene incidencias conocidas de fuentes/diálogos en Ubuntu."
-      install_bruno_snap
-      ;;
-  esac
-fi
+[[ "${apps_selected[3]}" -eq 1 ]] && install_bruno_apt
 
 log "Herramientas de desarrollo terminadas"
 cat <<'EOF'
