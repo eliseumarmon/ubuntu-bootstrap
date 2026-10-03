@@ -70,9 +70,17 @@ else
 fi
 
 if [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
-  # shellcheck disable=SC1090
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
-  ok "SDKMAN" "$(sdk version 2>/dev/null | tail -n1)"
+  sdkman_version="$(
+    set +u
+    # shellcheck disable=SC1090
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    sdk version 2>/dev/null | tail -n1
+  )"
+  if [[ -n "$sdkman_version" ]]; then
+    ok "SDKMAN" "$sdkman_version"
+  else
+    warn "SDKMAN" "instalado, pero no se pudo obtener la versión"
+  fi
 else
   warn "SDKMAN" "no encontrado"
 fi
