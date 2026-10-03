@@ -68,6 +68,8 @@ Tiene selectores interactivos por secciones.
   - marca `checked="checked"` únicamente en la copia HTML temporal
   - extrae del mismo diálogo el enlace `edgedl.me.gvt1.com/...-linux.tar.gz`
   - descarga el archivo automáticamente con `curl -fL`
+  - si ya detecta `/opt/android-studio/bin/studio`, pregunta si quieres reinstalar/actualizar; por defecto conserva la instalación actual
+  - aunque no reinstale, repara/configura el comando `studio`, el lanzador del menú y las rutas del SDK
   - crea el comando global `studio` mediante `/usr/local/bin/studio`
   - instala un lanzador `.desktop` para que Android Studio aparezca en el menú de aplicaciones
   - configura `ANDROID_HOME=$HOME/Android/Sdk`
